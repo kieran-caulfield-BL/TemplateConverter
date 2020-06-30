@@ -5,26 +5,64 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TemplateConverter"
         mc:Ignorable="d"
-        Title="MainWindow" Height="845.94" Width="1128.218">
+        Title="Solcase Document Template Analysis and Convert" Height="845.94" Width="1128.218">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="49*"/>
-            <ColumnDefinition Width="67*"/>
-            <ColumnDefinition Width="676*"/>
+            <ColumnDefinition Width="190*" x:Name="treeViewGrid"/>
+            <ColumnDefinition Width="887*" x:Name="htmlGrid"/>
         </Grid.ColumnDefinitions>
-        <Button Content="Directory" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Grid.ColumnSpan="2" Click="Button_Click"/>
-        <TreeView x:Name="treeView1" SelectedItemChanged="treeView1_SelectedItemChanged"  HorizontalAlignment="Left" Height="751" Margin="10,35,0,0" VerticalAlignment="Top" Width="176" Grid.ColumnSpan="3"/>
-        <WebBrowser x:Name="htmlOutput" HorizontalAlignment="Left" Height="751" Margin="27,35,0,0" VerticalAlignment="Top" Width="919" Grid.Column="2"/>
-        <Label x:Name="label1" Content="" Grid.Column="1" HorizontalAlignment="Left" Margin="76,7,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="138"/>
+        <Button x:Name="btnDirectory" Content="Directory" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Click="Button_Click" Height="20"/>
+        <TreeView x:Name="treeView1" 
+                  SelectedItemChanged="treeView1_SelectedItemChanged"  
+                  BorderThickness="5"
+                  VirtualizingStackPanel.IsVirtualizing="False"
+                  ItemsSource="{Binding Childrens,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                  ScrollViewer.CanContentScroll="False"
+                  HorizontalAlignment="Left" 
+                  Height="751" Margin="10,35,0,0" 
+                  VerticalAlignment="Top" 
+                  Width="176">
+
+            <TreeView.ItemTemplate>
+
+                <HierarchicalDataTemplate ItemsSource="{Binding Childs,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}">
+                    <TextBlock Text="{Binding Path=Name}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <!--<Setter Property="Background" Value="#4682B4" />-->
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Background" Value="Blue"/>
+                                        <Setter Property="Foreground" Value="White"/>
+
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsTargetItem}" Value="True">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Background" Value="Blue"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="{x:Type TreeViewItem}" >
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+
+        </TreeView>
+
+        <WebBrowser x:Name="htmlOutput" HorizontalAlignment="Left" Height="751" Margin="27,35,-59,0" VerticalAlignment="Top" Width="919" Grid.Column="2"/>
+        <Button x:Name="btnConvert" Content="Convert" Grid.Column="2" HorizontalAlignment="Left" Margin="27,10,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="btnConvert_Click" Height="20"/>
+        <Label x:Name="label1" Content="" Grid.Column="1" HorizontalAlignment="Left" Margin="505,2,0,0" VerticalAlignment="Top" Width="397" Height="28"/>
 
     </Grid>
     <Window.Resources>
-        <Style TargetType="{x:Type TreeViewItem}">
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="Yellow"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </Window.Resources>
 </Window>
