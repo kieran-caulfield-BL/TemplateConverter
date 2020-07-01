@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,6 +18,8 @@ using Microsoft.Office.Interop.Word;
 using System.IO;
 using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
+using HtmlAgilityPack;
+using System.Data.OleDb;
 
 namespace TemplateConverter
 {
@@ -144,8 +147,47 @@ namespace TemplateConverter
                 htmlText = "<HTML><BODY><H1> Unable to display document! </H1> <br />" + ex.Message + "</BODY><?HTML>";
             }
 
+            // load lookup
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.Load("C:\\Users\\kieran.caulfield\\OneDrive - Birkett Long LLP\\Documents\\Transformation\\Auto-Match-Screen-Fields.xml");
+
             htmlOutput.NavigateToString(htmlText);
             label1.Content = Globals.selectedDocument;
+
+            // find all variables identified in our displayed html (where div class is 'field')
+            var divFieldsXPath = "//div[contains(@class,'field')]";
+
+            HtmlAgilityPack.HtmlDocument htmlDoc = new HtmlAgilityPack.HtmlDocument();
+            htmlDoc.LoadHtml(htmlText);
+
+            HtmlNodeCollection listOfFields = htmlDoc.DocumentNode.SelectNodes(divFieldsXPath);
+            // check there are actually some fields to iterate round
+
+            if (listOfFields != null)
+            {
+                foreach (var node in listOfFields)
+                {
+                    // find the Merge Field Mapping
+                    Regex fieldName = new Regex(@"[A-Z][A-Z]?[A-Z][0-9]."); // will find TF09 and ABC09
+
+                    Match m = fieldName.Match(node.InnerText, 0);
+
+                    string mappedMergeField = "unmapped";
+                    // search xml merged field table with this xpath to get match "//Auto-Match-Screen-Fields/Data-Collection-Field-Name[../Field-Code-Lookup='ESD03']/text()"
+
+                    XmlNode mappedNode = xmlDoc.SelectSingleNode("//Auto-Match-Screen-Fields/Data-Collection-Field-Name[../Field-Code-Lookup='" + m.Value + "']/text()");
+
+                    if (mappedNode != null)
+                    {
+                        mappedMergeField = mappedNode.InnerText;
+                    }
+
+                    Globals.mergeFieldMapping.Add(new mapMergeField() { solcaseField = m.Value, mergeField = mappedMergeField });
+                }
+            }
+
+            // Bind list to data grid
+            dgMap.ItemsSource = Globals.mergeFieldMapping;
 
         }
 
@@ -164,6 +206,8 @@ namespace TemplateConverter
             try
             {
                 Globals.activeDoc = word.Documents.Open(document);
+
+
 
                 if (Globals.activeDoc.FullName.ToLower().EndsWith(".doc"))
                 {
@@ -208,6 +252,8 @@ namespace TemplateConverter
         public static Document activeDoc { get; set; }
 
         public static string selectedDocument { get; set; }
+
+        public static List<mapMergeField> mergeFieldMapping = new List<mapMergeField>();
 
         public static string style = @"<style>
             body{
@@ -259,6 +305,12 @@ namespace TemplateConverter
             {"div-conditional", "<div class='conditional'>"},
             {"div-close","</div>"}
         };
+    }
+
+    public class mapMergeField
+    {
+        public string solcaseField { get; set; }
+        public string mergeField { get; set; }
     }
 
     public static class renderHTML

@@ -5,11 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TemplateConverter"
         mc:Ignorable="d"
-        Title="Solcase Document Template Analysis and Convert" Height="845.94" Width="1128.218">
-    <Grid>
+        Title="Solcase Document Template Analysis and Convert" Height="845.94" Width="1424.218">
+    <Grid ShowGridLines="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190*" x:Name="treeViewGrid"/>
-            <ColumnDefinition Width="887*" x:Name="htmlGrid"/>
+            <ColumnDefinition Width="64*" x:Name="treeViewGrid"/>
+            <ColumnDefinition Width="299*" x:Name="htmlGrid"/>
+            <ColumnDefinition Width="109*" x:Name="mappingGrid"/>
         </Grid.ColumnDefinitions>
         <Button x:Name="btnDirectory" Content="Directory" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Click="Button_Click" Height="20"/>
         <TreeView x:Name="treeView1" 
@@ -58,9 +59,10 @@
 
         </TreeView>
 
-        <WebBrowser x:Name="htmlOutput" HorizontalAlignment="Left" Height="751" Margin="27,35,-59,0" VerticalAlignment="Top" Width="919" Grid.Column="2"/>
-        <Button x:Name="btnConvert" Content="Convert" Grid.Column="2" HorizontalAlignment="Left" Margin="27,10,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="btnConvert_Click" Height="20"/>
-        <Label x:Name="label1" Content="" Grid.Column="1" HorizontalAlignment="Left" Margin="505,2,0,0" VerticalAlignment="Top" Width="397" Height="28"/>
+        <WebBrowser x:Name="htmlOutput" HorizontalAlignment="Left" Height="751" Margin="10,35,0,0" VerticalAlignment="Top" Width="875" Grid.Column="1"/>
+        <Button x:Name="btnConvert" Content="Convert" Grid.Column="1" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="btnConvert_Click" Height="20"/>
+        <Label x:Name="label1" Content="" Grid.Column="1" HorizontalAlignment="Left" Margin="488,2,0,0" VerticalAlignment="Top" Width="397" Height="28"/>
+        <DataGrid x:Name="dgMap" Grid.Column="2" HorizontalAlignment="Left" Height="751" Margin="10,35,0,0" VerticalAlignment="Top" Width="307"/>
 
     </Grid>
     <Window.Resources>
