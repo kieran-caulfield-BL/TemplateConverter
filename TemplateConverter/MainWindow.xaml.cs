@@ -20,6 +20,10 @@ using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 using HtmlAgilityPack;
 using System.Data.OleDb;
+using System.Windows.Threading;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using System.IO.Packaging;
 
 namespace TemplateConverter
 {
@@ -33,6 +37,9 @@ namespace TemplateConverter
             InitializeComponent();
 
             Globals.selectedDocument = "";
+
+            treeView1.SetValue(VirtualizingStackPanel.IsVirtualizingProperty, true);
+            treeView1.SetValue(VirtualizingStackPanel.VirtualizationModeProperty, VirtualizationMode.Recycling);
 
         }
 
@@ -112,8 +119,8 @@ namespace TemplateConverter
 
         private async void treeView1_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-
             label1.Content = "Initiating MS Word.";
+            label1.Refresh();
 
             if (treeView1.Items.Count >= 0)
             {
@@ -134,6 +141,9 @@ namespace TemplateConverter
 
             string document = System.IO.Path.Combine(Globals.directoryInfo.FullName, Globals.selectedDocument);
             //MessageBoxResult result = System.Windows.MessageBox.Show(myMessage);
+
+            label1.Content = "Reading: " + Globals.selectedDocument + " ... please wait.";
+            label1.Refresh();
 
             string htmlText = "";
 
@@ -175,7 +185,7 @@ namespace TemplateConverter
                     string mappedMergeField = "unmapped";
                     // search xml merged field table with this xpath to get match "//Auto-Match-Screen-Fields/Data-Collection-Field-Name[../Field-Code-Lookup='ESD03']/text()"
 
-                    XmlNode mappedNode = xmlDoc.SelectSingleNode("//Auto-Match-Screen-Fields/Data-Collection-Field-Name[../Field-Code-Lookup='" + m.Value + "']/text()");
+                    XmlNode mappedNode = xmlDoc.SelectSingleNode("//Auto-Match-Screen-Fields/Merge-Field-Name[../Field-Code-Lookup='" + m.Value + "']/text()");
 
                     if (mappedNode != null)
                     {
@@ -192,8 +202,54 @@ namespace TemplateConverter
         }
 
 
+        public void ReplaceMergeFields (string convertedFile)
+        {
+            // Method open converted docx document in interregoate using open xml to replace merge fields
+            // and bring in includes too (converting and then including)
 
-        public void ConvertDocToDocx()
+            //https://docs.microsoft.com/en-us/office/open-xml/how-to-search-and-replace-text-in-a-document-part
+
+            int fieldsReplaced = 0;
+
+            using (WordprocessingDocument wordDoc =
+            WordprocessingDocument.Open(convertedFile, true))
+            {
+
+                string docText = null;
+                using (StreamReader sr = new StreamReader(wordDoc.MainDocumentPart.GetStream()))
+                {
+                    docText = sr.ReadToEnd();
+                }
+
+                //Regex regexVariables = new Regex(@"\[[A-Z].*?\]");
+                //Regex regexVariablesNeg = new Regex(@"\[![A-Z].*?\]");
+
+                // inspect all mapped fields and replace with converted values by looping through Globals.mergeFieldMapping
+                foreach (var item in Globals.mergeFieldMapping.Distinct())
+                {
+                    if(item.mergeField != "unmapped")
+                    {
+                        string solcaseField = @"["+item.solcaseField+@"?]"; // find variable value including square brackets
+                        string mergedField = item.mergeField; // add double brackets
+
+                        Regex regexText = new Regex(item.solcaseField);
+                        docText = regexText.Replace(docText, item.mergeField);
+
+                        fieldsReplaced += 1;
+                    }
+                }
+
+                using (StreamWriter sw = new StreamWriter(wordDoc.MainDocumentPart.GetStream(FileMode.Create)))
+                {
+                    sw.Write(docText);
+                }
+            }
+
+            label1.Content = fieldsReplaced.ToString() + " Fields replaced.";
+        }
+
+
+        public string ConvertDocToDocx()
         {
             // https://stackoverflow.com/questions/23120431/saveas-ms-word-as-docx-instead-of-doc-c-sharp
 
@@ -202,24 +258,32 @@ namespace TemplateConverter
             string document = System.IO.Path.Combine(Globals.directoryInfo.FullName, Globals.selectedDocument);
 
             string newFileName = "";
+            string convertName = "";
 
             try
             {
                 Globals.activeDoc = word.Documents.Open(document);
 
+                // replace all fields with their matched merge field values
+
+                // create Merged Fields
 
 
                 if (Globals.activeDoc.FullName.ToLower().EndsWith(".doc"))
                 {
                     if (Globals.activeDoc.FullName.EndsWith(".DOC"))
                     {
-                        newFileName = Globals.activeDoc.FullName.Replace(".DOC", ".AS.docx");
+                        newFileName = Globals.activeDoc.Name.Replace(".DOC", ".AS.docx");
                     } else
                     {
-                        newFileName = Globals.activeDoc.FullName.Replace(".doc", ".AS.docx");
+                        newFileName = Globals.activeDoc.Name.Replace(".doc", ".AS.docx");
                     }
 
-                    Globals.activeDoc.SaveAs2(newFileName, WdSaveFormat.wdFormatXMLDocument,
+                    string convertDir = Globals.directoryInfo.FullName;
+
+                    convertName = System.IO.Path.Combine(convertDir, "Convert", newFileName);
+
+                    Globals.activeDoc.SaveAs2(convertName, WdSaveFormat.wdFormatXMLDocument,
                                      CompatibilityMode: WdCompatibilityMode.wdWord2013);
                 }
             }
@@ -233,17 +297,28 @@ namespace TemplateConverter
             word.ActiveDocument.Close();
             word.Quit();
 
+            return convertName;
+
         }
 
         private void btnConvert_Click(object sender, RoutedEventArgs e)
         {
             label1.Content = "Converting to docx.";
-            ConvertDocToDocx();
-
+            string convertedFile = ConvertDocToDocx();
+            label1.Content = "Replacing Merged Fields.";
+            ReplaceMergeFields(convertedFile);
         }
     }
 
+    public static class ExtensionMethods
+    {
+        private static Action EmptyDelegate = delegate () { };
 
+        public static void Refresh(this UIElement uiElement)
+        {
+            uiElement.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
+        }
+    }
 
     public static class Globals
     {
