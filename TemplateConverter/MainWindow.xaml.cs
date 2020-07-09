@@ -24,6 +24,8 @@ using System.Windows.Threading;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using System.IO.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Document = Microsoft.Office.Interop.Word.Document;
 
 namespace TemplateConverter
 {
@@ -215,27 +217,49 @@ namespace TemplateConverter
             WordprocessingDocument.Open(convertedFile, true))
             {
 
+                // Assign a reference to the existing document body.
+                //Body body = wordDoc.MainDocumentPart.Document.Body;
+                // create merge field like «Estate_Details_Salutation_ESD01»
+                //string wordMergeFieldTxt = String.Format(" MERGEFIELD  {0}  \\* MERGEFORMAT", item.mergeField);
+                //SimpleField simpleField1 = new SimpleField() { Instruction = wordMergeFieldTxt };
+
                 string docText = null;
                 using (StreamReader sr = new StreamReader(wordDoc.MainDocumentPart.GetStream()))
                 {
                     docText = sr.ReadToEnd();
                 }
 
-                //Regex regexVariables = new Regex(@"\[[A-Z].*?\]");
-                //Regex regexVariablesNeg = new Regex(@"\[![A-Z].*?\]");
+                // As a general rule all single brackets should be replaced with double brackets
+
+                docText = docText.Replace("[", "[[");
+                docText = docText.Replace("]", "]]");
+
+                // replace conditional statements
+                docText = docText.Replace("&amp;EndIf", "*ENDIF*");
+                docText = docText.Replace("&amp;If", "*IF");
+                docText = docText.Replace("&amp;Else", "*ELSE*");
 
                 // inspect all mapped fields and replace with converted values by looping through Globals.mergeFieldMapping
-                foreach (var item in Globals.mergeFieldMapping.Distinct())
+                var DistinctItems = Globals.mergeFieldMapping.GroupBy(x => x.solcaseField).Select(y => y.First());
+
+                foreach (var item in DistinctItems)
                 {
                     if(item.mergeField != "unmapped")
                     {
                         string solcaseField = @"["+item.solcaseField+@"?]"; // find variable value including square brackets
-                        string mergedField = item.mergeField; // add double brackets
+                        string mergedField = item.mergeField; // add double brackets later?
+
+
 
                         Regex regexText = new Regex(item.solcaseField);
                         docText = regexText.Replace(docText, item.mergeField);
 
                         fieldsReplaced += 1;
+                     
+                        //solcaseField = @"[!" + item.solcaseField + @"?]"; // repeat for ! exclamation variables eg [!EXE01]
+                        //regexText = new Regex(item.solcaseField);
+                        //docText = regexText.Replace(docText, item.mergeField);
+
                     }
                 }
 
