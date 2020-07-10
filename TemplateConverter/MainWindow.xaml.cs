@@ -151,7 +151,8 @@ namespace TemplateConverter
 
             try
             {
-                htmlText = await renderHTML.SearchAndHighlight(document);
+                //htmlText = await renderHTML.SearchAndHighlight(document);
+                htmlText = await renderHTML.SearchAndHighlightXMLDoc(document);
                 btnConvert.IsEnabled = true;
             } 
             catch (Exception ex)
@@ -327,10 +328,29 @@ namespace TemplateConverter
 
         private void btnConvert_Click(object sender, RoutedEventArgs e)
         {
-            label1.Content = "Converting to docx.";
-            string convertedFile = ConvertDocToDocx();
+            //label1.Content = "Converting to docx.";
+            //string convertedFile = ConvertDocToDocx();
+        
+            // copy the file to the Convert directory
+            string fileName = Globals.selectedDocument;
+            string sourcePath = Globals.directoryInfo.FullName;
+            string targetPath = System.IO.Path.Combine(sourcePath, "Convert");
+
+            // Use Path class to manipulate file and directory paths.
+            string sourceFile = System.IO.Path.Combine(sourcePath, fileName);
+            string destFile = System.IO.Path.Combine(targetPath, fileName);
+
+            // To copy a folder's contents to a new location:
+            // Create a new target folder.
+            // If the directory already exists, this method does not create a new directory.
+            System.IO.Directory.CreateDirectory(targetPath);
+
+            // To copy a file to another location and
+            // overwrite the destination file if it already exists.
+            System.IO.File.Copy(sourceFile, destFile, true);
+
             label1.Content = "Replacing Merged Fields.";
-            ReplaceMergeFields(convertedFile);
+            ReplaceMergeFields(destFile);
         }
     }
 
@@ -492,6 +512,87 @@ namespace TemplateConverter
 
             return await Task.FromResult(newWords);
 
+        }
+
+        public static async Task<string> SearchAndHighlightXMLDoc(string document)
+        {
+            // this method uses Open XML to read the docx version of the template
+
+            Microsoft.Office.Interop.Word.Application Word97 = new Microsoft.Office.Interop.Word.Application();
+            //Word97.WordBasic.DisableAutoMacros();
+
+            using (WordprocessingDocument wordDocx =
+                WordprocessingDocument.Open(document, true))
+            {
+
+                // Assign a reference to the existing document body.
+                //Body body = wordDoc.MainDocumentPart.Document.Body;
+                // create merge field like «Estate_Details_Salutation_ESD01»
+                //string wordMergeFieldTxt = String.Format(" MERGEFIELD  {0}  \\* MERGEFORMAT", item.mergeField);
+                //SimpleField simpleField1 = new SimpleField() { Instruction = wordMergeFieldTxt };
+
+                string docText = null;
+
+                    using (StreamReader sr = new StreamReader(wordDocx.MainDocumentPart.GetStream()))
+                    {
+                        docText = sr.ReadToEnd();
+                    }
+
+                Regex regexIfCondition = new Regex(@"\[&(?i)If(?-i).[A-Z]*[0-9]*[=,<>].*?\]");
+                Regex regexElseCondition = new Regex(@"\[&(?i)Else(?-i).?\]");
+                Regex regexEndIfCondition = new Regex(@"\[&(?i)EndIf(?-i).*?\]");
+                Regex regexForEach = new Regex(@"\[&(?i)FOREACH(?-i).*?\]");
+                Regex regexIncludes = new Regex(@"\[&(?i)Include(?-i).*?\]");
+                Regex regexVariables = new Regex(@"\[[A-Z].*?\]");
+                Regex regexVariablesNeg = new Regex(@"\[![A-Z].*?\]"); // they have an exclaimation at the start
+
+                // counts of key words
+                int ifCount = regexIfCondition.Matches(docText).Count;
+                int loopCount = regexForEach.Matches(docText).Count;
+                int includesCount = regexIncludes.Matches(docText).Count;
+                int variablesCount = regexVariables.Matches(docText).Count;
+                int variablesCountNeg = regexVariablesNeg.Matches(docText).Count;
+
+                // If statements
+                string newWords = Regex.Replace(docText, @"\[&(?i)If(?-i).[A-Z]*[0-9]*=.*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&(?i)Else(?-i).?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&(?i)EndIf(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+
+                // Loops
+                newWords = Regex.Replace(newWords, @"\[&(?i)FOREACH(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&(?i)ENDFOR(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+
+                // Includes
+                newWords = Regex.Replace(newWords, @"\[&(?i)Include(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+
+                // Variables
+                newWords = Regex.Replace(newWords, @"\[[A-Z].*?\]", htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
+                newWords = Regex.Replace(newWords, @"\[![A-Z].*?\]", htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
+
+                // if statements
+                newWords = Regex.Replace(newWords, @"\[&(?i)If(?-i).[A-Z]*[0-9]*[=,<>].*?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+                newWords = Regex.Replace(newWords, @"\[&(?i)Else(?-i).?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+                newWords = Regex.Replace(newWords, @"\[&(?i)EndIf(?-i).*?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+
+                newWords = htmlTags.tags["html-open"] +
+                           htmlTags.tags["head-open"] +
+                           Globals.style +
+                           htmlTags.tags["title-open"] + Globals.selectedDocument + htmlTags.tags["title-close"] +
+                           htmlTags.tags["head-close"] +
+                           htmlTags.tags["body-open"] +
+                                newWords +
+                           htmlTags.tags["body-close"] +
+                           htmlTags.tags["html-close"];
+
+                /*tboxConditionals.Text = ifCount.ToString();
+                tboxLoops.Text = loopCount.ToString();
+                tboxIncludes.Text = includesCount.ToString();
+                tboxVariables.Text = Convert.ToString(variablesCount + variablesCountNeg);
+                */
+
+                return await Task.FromResult(newWords);
+
+            } // usingWordProcessingDocument , this closes the doc too
         }
     }
 
