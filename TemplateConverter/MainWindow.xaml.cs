@@ -26,6 +26,7 @@ using DocumentFormat.OpenXml.Packaging;
 using System.IO.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Document = Microsoft.Office.Interop.Word.Document;
+using System.Configuration;
 
 namespace TemplateConverter
 {
@@ -162,13 +163,16 @@ namespace TemplateConverter
 
             // load lookup
             XmlDocument xmlDoc = new XmlDocument();
-            xmlDoc.Load("C:\\Users\\kieran.caulfield\\OneDrive - Birkett Long LLP\\Documents\\Transformation\\Auto-Match-Screen-Fields.xml");
+            xmlDoc.Load(ConfigurationManager.AppSettings["xmlLookup"]);
 
             htmlOutput.NavigateToString(htmlText);
             label1.Content = Globals.selectedDocument;
 
             // find all variables identified in our displayed html (where div class is 'field')
             var divFieldsXPath = "//div[contains(@class,'field')]";
+
+            // reset list of mapped fields
+            Globals.mergeFieldMapping.Clear();
 
             HtmlAgilityPack.HtmlDocument htmlDoc = new HtmlAgilityPack.HtmlDocument();
             htmlDoc.LoadHtml(htmlText);
@@ -181,7 +185,7 @@ namespace TemplateConverter
                 foreach (var node in listOfFields)
                 {
                     // find the Merge Field Mapping
-                    Regex fieldName = new Regex(@"[A-Z][A-Z]?[A-Z][0-9]."); // will find TF09 and ABC09
+                    Regex fieldName = new Regex("[A-Z][A-Z]?[A-Z][0-9]."); // will find TF09 and ABC09
 
                     Match m = fieldName.Match(node.InnerText, 0);
 
@@ -201,6 +205,9 @@ namespace TemplateConverter
 
             // Bind list to data grid
             dgMap.ItemsSource = Globals.mergeFieldMapping;
+            CollectionViewSource.GetDefaultView(dgMap.ItemsSource).Refresh();
+            dgMap.UpdateLayout();
+            dgMap.Refresh();
 
         }
 
@@ -418,6 +425,7 @@ namespace TemplateConverter
             {"title-close", "</TITLE>"},
             {"body-open", "<BODY>"},
             {"body-close", "</BODY>"},
+            {"UTF-8","<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />" },
             {"div-field", "<div class='field'>"},
             {"div-loop", "<div class='loop'>"},
             {"div-include", "<div class='include'>"},
@@ -538,11 +546,11 @@ namespace TemplateConverter
                         docText = sr.ReadToEnd();
                     }
 
-                Regex regexIfCondition = new Regex(@"\[&(?i)If(?-i).[A-Z]*[0-9]*[=,<>].*?\]");
-                Regex regexElseCondition = new Regex(@"\[&(?i)Else(?-i).?\]");
-                Regex regexEndIfCondition = new Regex(@"\[&(?i)EndIf(?-i).*?\]");
-                Regex regexForEach = new Regex(@"\[&(?i)FOREACH(?-i).*?\]");
-                Regex regexIncludes = new Regex(@"\[&(?i)Include(?-i).*?\]");
+                Regex regexIfCondition = new Regex(@"\[&If.[A-Z]*[0-9]*[=,<>].*?\]");
+                Regex regexElseCondition = new Regex(@"\[&Else.?\]");
+                Regex regexEndIfCondition = new Regex(@"\[&EndIf.*?\]");
+                Regex regexForEach = new Regex(@"\[&FOREACH.*?\]");
+                Regex regexIncludes = new Regex(@"\[&Include.*?\]");
                 Regex regexVariables = new Regex(@"\[[A-Z].*?\]");
                 Regex regexVariablesNeg = new Regex(@"\[![A-Z].*?\]"); // they have an exclaimation at the start
 
@@ -554,28 +562,31 @@ namespace TemplateConverter
                 int variablesCountNeg = regexVariablesNeg.Matches(docText).Count;
 
                 // If statements
-                string newWords = Regex.Replace(docText, @"\[&(?i)If(?-i).[A-Z]*[0-9]*=.*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
-                newWords = Regex.Replace(newWords, @"\[&(?i)Else(?-i).?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
-                newWords = Regex.Replace(newWords, @"\[&(?i)EndIf(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                //string newWords = Regex.Replace(docText, "\\[&If.[A-Z]*[0-9]*=.*?\\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+                //newWords = Regex.Replace(newWords, "\\[&Else.?\\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+                //newWords = Regex.Replace(newWords, "&EndIf", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
+
+                // replace conditional statements
+                string newWords = docText.Replace("&amp;EndIf", htmlTags.tags["div-conditional"] + "&amp;EndIf" + htmlTags.tags["div-close"]);
+                newWords = newWords.Replace("&amp;If", htmlTags.tags["div-conditional"] + "&amp;If" + htmlTags.tags["div-close"]);
+                newWords = newWords.Replace("&amp;Else", htmlTags.tags["div-conditional"] + "&amp;Else" + htmlTags.tags["div-close"]);
+
 
                 // Loops
-                newWords = Regex.Replace(newWords, @"\[&(?i)FOREACH(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
-                newWords = Regex.Replace(newWords, @"\[&(?i)ENDFOR(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&FOREACH.*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&ENDFOR.*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
 
                 // Includes
-                newWords = Regex.Replace(newWords, @"\[&(?i)Include(?-i).*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
+                newWords = Regex.Replace(newWords, @"\[&Include.*?\]", htmlTags.tags["break"] + "$&" + htmlTags.tags["break"]);
 
                 // Variables
                 newWords = Regex.Replace(newWords, @"\[[A-Z].*?\]", htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
                 newWords = Regex.Replace(newWords, @"\[![A-Z].*?\]", htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
 
-                // if statements
-                newWords = Regex.Replace(newWords, @"\[&(?i)If(?-i).[A-Z]*[0-9]*[=,<>].*?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-                newWords = Regex.Replace(newWords, @"\[&(?i)Else(?-i).?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-                newWords = Regex.Replace(newWords, @"\[&(?i)EndIf(?-i).*?\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-
+                // wrap partial html tags in a htmldocument
                 newWords = htmlTags.tags["html-open"] +
                            htmlTags.tags["head-open"] +
+                           htmlTags.tags["UTF-8"] +
                            Globals.style +
                            htmlTags.tags["title-open"] + Globals.selectedDocument + htmlTags.tags["title-close"] +
                            htmlTags.tags["head-close"] +
