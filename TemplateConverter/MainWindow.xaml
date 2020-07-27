@@ -20,7 +20,7 @@
                   ItemsSource="{Binding Childrens,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
                   ScrollViewer.CanContentScroll="False"
                   HorizontalAlignment="Left" 
-                  Height="751" Margin="10,35,0,0" 
+                  Height="525" Margin="10,35,0,0" 
                   VerticalAlignment="Top" 
                   Width="176">
 
@@ -62,7 +62,16 @@
         <WebBrowser x:Name="htmlOutput" HorizontalAlignment="Left" Height="751" Margin="10,35,0,0" VerticalAlignment="Top" Width="875" Grid.Column="1"/>
         <Button x:Name="btnConvert" Content="Convert" Grid.Column="1" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="btnConvert_Click" Height="20"/>
         <Label x:Name="label1" Content="" Grid.Column="1" HorizontalAlignment="Left" Margin="488,2,0,0" VerticalAlignment="Top" Width="397" Height="28"/>
-        <DataGrid x:Name="dgMap" Grid.Column="2" HorizontalAlignment="Left" Height="751" Margin="10,35,0,0" VerticalAlignment="Top" Width="307"/>
+        <DataGrid x:Name="dgMap" Grid.Column="2" HorizontalAlignment="Left" Height="525" Margin="10,35,0,0" VerticalAlignment="Top" Width="307"/>
+        <TextBox x:Name="tboxVariables" HorizontalAlignment="Left" Height="23" Margin="62,597,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="120"/>
+        <TextBox x:Name="tboxConditionals" HorizontalAlignment="Left" Height="23" Margin="62,625,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="120"/>
+        <TextBox x:Name="tboxIncludes" HorizontalAlignment="Left" Height="23" Margin="62,653,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="120"/>
+        <TextBox x:Name="tboxLoops" HorizontalAlignment="Left" Height="23" Margin="62,681,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="120"/>
+        <DataGrid x:Name="dgIncludes" Grid.Column="2" HorizontalAlignment="Left" Height="189" Margin="10,597,0,0" VerticalAlignment="Top" Width="307"/>
+        <Label x:Name="lblVariables" Content="Variables" HorizontalAlignment="Left" Margin="10,597,0,0" VerticalAlignment="Top" RenderTransformOrigin="-6.526,-7.417" Width="47" Height="23" FontSize="9"/>
+        <Label x:Name="lblConditionals" Content="If Else" HorizontalAlignment="Left" Margin="10,625,0,0" VerticalAlignment="Top" RenderTransformOrigin="-6.526,-7.417" Width="47" Height="23" FontSize="9"/>
+        <Label x:Name="lblIncludes" Content="Includes" HorizontalAlignment="Left" Margin="10,653,0,0" VerticalAlignment="Top" RenderTransformOrigin="-6.526,-7.417" Width="47" Height="23" FontSize="9"/>
+        <Label x:Name="lblLoops" Content="Loops" HorizontalAlignment="Left" Margin="10,681,0,0" VerticalAlignment="Top" RenderTransformOrigin="-6.526,-7.417" Width="47" Height="23" FontSize="9"/>
 
     </Grid>
     <Window.Resources>
