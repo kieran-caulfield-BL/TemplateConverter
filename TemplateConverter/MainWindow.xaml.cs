@@ -167,6 +167,8 @@ namespace TemplateConverter
             // load lookup
             XmlDocument xmlDoc = new XmlDocument();
             xmlDoc.Load(ConfigurationManager.AppSettings["xmlLookup"]);
+            XmlDocument xmlDoc2 = new XmlDocument();
+            xmlDoc2.Load(ConfigurationManager.AppSettings["xmlLookupLinkTable"]);
 
             htmlOutput.NavigateToString(htmlText);
             label1.Content = Globals.selectedDocument;
@@ -196,10 +198,16 @@ namespace TemplateConverter
                     // search xml merged field table with this xpath to get match "//Auto-Match-Screen-Fields/Data-Collection-Field-Name[../Field-Code-Lookup='ESD03']/text()"
 
                     XmlNode mappedNode = xmlDoc.SelectSingleNode("//Auto-Match-Screen-Fields/Merge-Field-Name[../Field-Code-Lookup='" + m.Value + "']/text()");
-
                     if (mappedNode != null)
                     {
                         mappedMergeField = mappedNode.InnerText;
+                    }
+
+                    // try the linked table
+                    XmlNode mappedNodeLink = xmlDoc2.SelectSingleNode("//LINK_TABLE/MERGED-FIELD-NAME[../FIELD-CODE='" + m.Value + "']/text()");
+                    if (mappedNodeLink != null)
+                    {
+                        mappedMergeField = mappedNodeLink.InnerText;
                     }
 
                     Globals.mergeFieldMapping.Add(new mapMergeField() { solcaseField = m.Value, mergeField = mappedMergeField });
@@ -278,17 +286,17 @@ namespace TemplateConverter
                 newWords = regexIncludes.Replace(newWords, htmlTags.tags["div-include"] + "$&" + htmlTags.tags["div-close"]);
 
                 // Update dgIncludes data grid
-                var count = 0;
-                var OrderList = regexIncludes.Matches(docText)
-                    .Cast<Match>()
-                    .Select(m => new
-                    {
-                        Name = m.Groups["item"].ToString(),
-                        Count = int.TryParse(m.Groups["count"].ToString(), out count) ? count : 0,
-                    })
-                    .ToList();
+                Globals.includesList.Clear();
+                // Get a collection of matches.
+                MatchCollection matches = regexIncludes.Matches(newWords);
 
-                dgIncludes.ItemsSource = OrderList;
+                // Use foreach-loop.
+                foreach (Match match in matches)
+                {
+                    Globals.includesList.Add(new mapIncludes() { includeValue = match.Value, includeName = match.Value.Replace("[&amp;Include ", "").Replace("]","") });
+                }
+
+                dgIncludes.ItemsSource = Globals.includesList;
                 CollectionViewSource.GetDefaultView(dgIncludes.ItemsSource).Refresh();
                 dgIncludes.UpdateLayout();
                 dgIncludes.Refresh();
@@ -438,6 +446,8 @@ namespace TemplateConverter
 
         public static List<mapMergeField> mergeFieldMapping = new List<mapMergeField>();
 
+        public static List<mapIncludes> includesList = new List<mapIncludes>();
+
         public static string style = @"<style>
             body{
             font-family: verdana;
@@ -453,7 +463,7 @@ namespace TemplateConverter
             }
             .loop
             {
-            background-color: lightorange;
+            background-color: orange;
             }
             .include
             {
@@ -495,6 +505,13 @@ namespace TemplateConverter
     {
         public string solcaseField { get; set; }
         public string mergeField { get; set; }
+    }
+
+    public class mapIncludes
+    {
+        public string includeValue { get; set; }
+
+        public string includeName { get; set; }
     }
 
     public static class renderHTML
