@@ -214,8 +214,12 @@ namespace TemplateConverter
                 }
             }
 
+            // remove duplicates and sort list
+            List<mapMergeField> noDupesMergeFieldList = Globals.mergeFieldMapping.GroupBy(d => new { d.solcaseField, d.mergeField })
+                                                                                                    .Select(d => d.First())
+                                                                                                    .ToList();
             // Bind list to data grid
-            dgMap.ItemsSource = Globals.mergeFieldMapping;
+            dgMap.ItemsSource = noDupesMergeFieldList;
             CollectionViewSource.GetDefaultView(dgMap.ItemsSource).Refresh();
             dgMap.UpdateLayout();
             dgMap.Refresh();
@@ -233,12 +237,6 @@ namespace TemplateConverter
                 WordprocessingDocument.Open(document, true))
             {
 
-                // Assign a reference to the existing document body.
-                //Body body = wordDoc.MainDocumentPart.Document.Body;
-                // create merge field like «Estate_Details_Salutation_ESD01»
-                //string wordMergeFieldTxt = String.Format(" MERGEFIELD  {0}  \\* MERGEFORMAT", item.mergeField);
-                //SimpleField simpleField1 = new SimpleField() { Instruction = wordMergeFieldTxt };
-
                 string docText = null;
 
                 using (StreamReader sr = new StreamReader(wordDocx.MainDocumentPart.GetStream()))
@@ -246,14 +244,17 @@ namespace TemplateConverter
                     docText = sr.ReadToEnd();
                 }
 
-                Regex regexIfCondition = new Regex(@"\[&amp;If.[A-Z]*[0-9]*[=,<>].*?\]", RegexOptions.IgnoreCase);
+                Regex regexIfCondition = new Regex(@"\[&amp;If.[A-Z]*[0-9]*[=,&lt;&gt;,&amp;].*?\]", RegexOptions.IgnoreCase);
                 Regex regexElseCondition = new Regex(@"\[&amp;Else.?\]", RegexOptions.IgnoreCase);
                 Regex regexEndIfCondition = new Regex(@"\[&amp;EndIf.*?\]", RegexOptions.IgnoreCase);
                 Regex regexForEach = new Regex(@"\[&amp;FOREACH.*?\]", RegexOptions.IgnoreCase);
                 Regex regexEndFor = new Regex(@"\[&amp;ENDFOR.*?\]", RegexOptions.IgnoreCase);
                 Regex regexIncludes = new Regex(@"\[&amp;Include.*?\]", RegexOptions.IgnoreCase);
-                Regex regexVariables = new Regex(@"\[[A-Z].*?\]");
+                Regex regexVariables = new Regex(@"\w*[A-Z]\w*[A-Z]\w*[0-9]{2}");
                 Regex regexVariablesNeg = new Regex(@"\[![A-Z].*?\]"); // they have an exclaimation at the start
+                //Regex regexVariablesCond = new Regex(@"[A-Z]*\d{2}="); // variables embedded in conditional statements
+                //Regex regexVariablesCond2 = new Regex(@"[A-Z]*\d{2}.&amp;"); // variables embedded in conditional statements
+                //Regex regexVariablesCond3 = new Regex(@"[A-Z]{3}\d{2}.&lt;&gt;"); // variables embedded in conditional statements
 
                 // counts of key words
                 int ifCount = regexIfCondition.Matches(docText).Count;
@@ -264,19 +265,16 @@ namespace TemplateConverter
                 tboxIncludes.Text = includesCount.ToString();
                 int variablesCount = regexVariables.Matches(docText).Count;
                 int variablesCountNeg = regexVariablesNeg.Matches(docText).Count;
-                int totalVariables = variablesCount + variablesCountNeg;
+                //int variablesCountCond = regexVariablesCond.Matches(docText).Count;
+                //int variablesCountCond2 = regexVariablesCond2.Matches(docText).Count;
+                //int variablesCountCond3 = regexVariablesCond3.Matches(docText).Count;
+                int totalVariables = variablesCount + variablesCountNeg; //+ variablesCountCond + variablesCountCond2 + variablesCountCond3;
                 tboxVariables.Text = totalVariables.ToString();
-
-                // If statements
-                //string newWords = Regex.Replace(docText, "\\[&If.[A-Z]*[0-9]*=.*?\\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-                //newWords = Regex.Replace(newWords, "\\[&Else.?\\]", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-                //newWords = Regex.Replace(newWords, "&EndIf", htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
 
                 // replace conditional statements
                 string newWords = regexIfCondition.Replace(docText, htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
                 newWords = regexElseCondition.Replace(newWords, htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
                 newWords = regexEndIfCondition.Replace(newWords, htmlTags.tags["div-conditional"] + "$&" + htmlTags.tags["div-close"]);
-
 
                 // Loops
                 newWords = regexForEach.Replace(newWords, htmlTags.tags["div-loop"] + "$&" + htmlTags.tags["div-close"]);
@@ -304,6 +302,9 @@ namespace TemplateConverter
                 // Variables
                 newWords = regexVariables.Replace(newWords, htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
                 newWords = regexVariablesNeg.Replace(newWords, htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
+                //newWords = regexVariablesCond.Replace(newWords, htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
+                //newWords = regexVariablesCond2.Replace(newWords, htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
+                //newWords = regexVariablesCond3.Replace(newWords, htmlTags.tags["div-field"] + "$&" + htmlTags.tags["div-close"]);
 
                 // wrap partial html tags in a htmldocument
                 newWords = htmlTags.tags["html-open"] +
@@ -316,12 +317,6 @@ namespace TemplateConverter
                                 newWords +
                            htmlTags.tags["body-close"] +
                            htmlTags.tags["html-close"];
-
-                /*tboxConditionals.Text = ifCount.ToString();
-                tboxLoops.Text = loopCount.ToString();
-                tboxIncludes.Text = includesCount.ToString();
-                tboxVariables.Text = Convert.ToString(variablesCount + variablesCountNeg);
-                */
 
                 return newWords;
 
@@ -493,7 +488,7 @@ namespace TemplateConverter
             {"body-open", "<BODY>"},
             {"body-close", "</BODY>"},
             {"UTF-8","<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />" },
-            {"div-field", "<div class='field'>"},
+            {"div-field", "<div class='field' style='display: inline'>"},
             {"div-loop", "<div class='loop'>"},
             {"div-include", "<div class='include'>"},
             {"div-conditional", "<div class='conditional'>"},
